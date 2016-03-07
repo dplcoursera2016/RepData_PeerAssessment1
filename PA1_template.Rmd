@@ -1,25 +1,77 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+author: "dplcoursera2016"
+date: "7 March 2016"
+output: html_document
 ---
 
-
 ## Loading and preprocessing the data
-
-
-
+```{r}
+stepdata = read.csv("repdata_data_activity/activity.csv")
+```
 ## What is mean total number of steps taken per day?
+Used aggregate function to sum steps over days.
+Since aggregate function avoids na values, did not need to pre-process the data set supplied.
+Plotted a histogram with 20 intervals, calculated mean and median, and displayed these using cat function.
+```{r, echo=TRUE}
+stepByDay = aggregate(steps~date, stepdata, sum)
+hist(stepByDay$steps,breaks=20)
+meansteps = mean(stepByDay$steps)
+mediansteps = median(stepByDay$steps)
+cat("mean number of steps per day is ", meansteps, "\n");
+cat("median number of steps per day is ", mediansteps, "\n")
+```
+Showed that data is fairly symmetric, and that average is about 10766 steps per day
 
+##What is the average daily activity pattern?
+Used aggregate function to average steps over 5-min intervals.
+Plotted results as a line graph to see the average pattern of steps during the day.
+Used max function to extract maximum (5-min) step number,
+and identified the interval in which this occurs, displaying result using cat funtion.
+Interval 835 has maximum average, which was 206.17 steps
+```{r, echo=TRUE}
+stepByInterval = aggregate(steps~interval, stepdata, mean)
+with(stepByInterval,plot(steps~interval,type="l"))
+maxSteps = max(stepByInterval$steps)
+maxStepInterval = stepByInterval[stepByInterval$steps >= maxSteps,1]
+cat("interval with maximum average steps is ",maxStepInterval," with ",maxSteps," steps", "\n")
+```
 
+##Inputing missing values
+Extracted intervals as vectors from data set.
+Created a vector of means (same length as intervals) using average step by interval in last part.
+Created a duplicate of original data, then used  for-loop to replace na values in steps column with average for the matching interval value.
+Histogram, mean and median show that by this replacement method, mean is unchanged, but that median becomes equal to mean (unsure if this is a general effect, or sepcific to this data set)
+```{r, echo=TRUE}
+intervals = stepdata$interval
+means = stepdata$steps
+for(i in 1:length(intervals)){means[i] = stepByInterval[stepByInterval[,1]==intervals[i],2] }
+stepdata2 = stepdata
+for(i in 1:length(intervals)){if(is.na(stepdata2[i,1])){stepdata2[i,1] = means[i]} }
+library(dplyr)
+stepByDay2 = aggregate(steps~date, stepdata2, sum)
+hist(stepByDay2$steps,breaks=20)
+meansteps2 = mean(stepByDay2$steps)
+mediansteps2 = median(stepByDay2$steps)
+cat("mean number of steps per day after na replacement is ", meansteps2, "\n");
+cat("median number of steps per day after na replacement is ", mediansteps2, "\n")
+```
 
-## What is the average daily activity pattern?
+##Are there differences in activity patterns between weekdays and weekends?
+loaded ggplot2 library
+Created a new data set by first adding a column with day names, and hence another column with the weekend/weekday classification specified in assignment
+User ggplot to 
+```{r, echo=TRUE}
+library(ggplot2)
+stepdata3=mutate(stepdata2, day = factor(weekdays(as.POSIXct(date))))
+stepdata3=mutate(stepdata3, daytype = factor(day=="Saturday" | day=="Sunday", labels=c("weekday","weekend")))
+stepByInterval3= aggregate(steps~interval+daytype, stepdata3, mean)
+```
+Created a pair of plots of average steps against 5-min interval, conditioned on weekend/weekday
+```{r, echo=TRUE}
+p <- ggplot(stepByInterval3, aes(x=interval, y=steps))+geom_line(color="skyblue")+facet_grid(daytype~.)
+print(p)
+```
 
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+Plots seem to indicate that steps begin later on the weekend, and continue later.
+Larger peak of steps early on weekdays (travel to work?), but a higher average during most of day at weekends.
